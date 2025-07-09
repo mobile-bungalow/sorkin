@@ -33,6 +33,7 @@ pub struct SorkinWriter {
     conversion_context: Option<ConversionContext>,
     frame_count: usize,
     fps: u32,
+    output_path: Option<String>,
 }
 
 const DEFAULT_MIX_RATE_HZ: u32 = 44_100;
@@ -46,6 +47,7 @@ impl IMovieWriter for SorkinWriter {
             conversion_context: None,
             frame_count: 0,
             fps: 30,
+            output_path: None,
         }
     }
 
@@ -78,46 +80,59 @@ impl IMovieWriter for SorkinWriter {
         );
         ffmpeg::init().unwrap();
 
-        let width = movie_size.x as u32;
-        let height = movie_size.y as u32;
-
-        match (
-            VP9Encoder::new(path.to_string(), width, height, fps as f64),
-            ConversionContext::new(
-                godot::classes::image::Format::RGBA8,
-                ffmpeg::format::Pixel::YUV420P,
-                width,
-                height,
-            ),
-        ) {
-            (Ok(encoder), Ok(conversion_context)) => {
-                godot_print!("VP9 encoder and conversion context initialized");
-                self.encoder = Some(encoder);
-                self.conversion_context = Some(conversion_context);
-                self.frame_count = 0;
-                self.fps = fps;
-                GodotError::OK
-            }
-            (Err(e), _) | (_, Err(e)) => {
-                godot_error!("Failed to initialize encoder: {:?}", e);
-                GodotError::ERR_CANT_CREATE
-            }
-        }
+        // Store parameters for later initialization with actual frame size
+        self.fps = fps;
+        self.frame_count = 0;
+        self.output_path = Some(path.to_string());
+        
+        // We'll create the encoder and conversion context on first frame
+        // to use the actual frame dimensions
+        GodotError::OK
     }
     unsafe fn write_frame(
         &mut self,
         frame_image: Gd<godot::classes::Image>,
         _audio_frame_block: *const c_void,
     ) -> GodotError {
+        let size = frame_image.get_size();
+
+        // Initialize encoder on first frame with actual frame dimensions
+        if self.encoder.is_none() {
+            if let Some(ref path) = self.output_path {
+                let width = size.x as u32;
+                let height = size.y as u32;
+                
+                match (
+                    VP9Encoder::new(path.clone(), width, height, self.fps as f64),
+                    ConversionContext::new(
+                        godot::classes::image::Format::RGBA8,
+                        ffmpeg::format::Pixel::YUV420P,
+                        width,
+                        height,
+                    ),
+                ) {
+                    (Ok(encoder), Ok(conversion_context)) => {
+                        self.encoder = Some(encoder);
+                        self.conversion_context = Some(conversion_context);
+                    }
+                    (Err(e), _) | (_, Err(e)) => {
+                        godot_error!("Failed to initialize encoder: {:?}", e);
+                        return GodotError::ERR_CANT_CREATE;
+                    }
+                }
+            } else {
+                return GodotError::ERR_UNCONFIGURED;
+            }
+        }
+
         if let (Some(encoder), Some(conversion_context)) =
             (&mut self.encoder, &mut self.conversion_context)
         {
-            let size = frame_image.get_size();
-
+            // Now frame dimensions will match conversion context dimensions
             let mut frame = ffmpeg::frame::Video::new(
                 ffmpeg::format::Pixel::YUV420P,
-                size.x as u32,
-                size.y as u32,
+                conversion_context.width,
+                conversion_context.height,
             );
 
             conversion_context.convert(frame_image, &mut frame);

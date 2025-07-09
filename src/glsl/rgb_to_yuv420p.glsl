@@ -28,7 +28,7 @@ void main() {
 
     imageStore(luma, pixel_coords, vec4(yuva.x));
     imageStore(alpha, pixel_coords, vec4(yuva.w));
-    
+
     if (pixel_coords.x % 2 == 0 && pixel_coords.y % 2 == 0) {
         ivec2 chroma_coords = pixel_coords / 2;
         imageStore(chr_u, chroma_coords, vec4(yuva.y));

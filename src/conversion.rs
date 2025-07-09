@@ -200,7 +200,6 @@ impl ConversionContext {
         mut input_image: Gd<Image>,
         frame: &mut ffmpeg_next::util::frame::Video,
     ) {
-        input_image.resize(self.width as i32, self.height as i32);
         input_image.convert(Format::RGBA8);
 
         let Channels::YUVA420p { scratch, .. } = self.channels;
@@ -271,7 +270,6 @@ impl Drop for ConversionContext {
                 u,
                 v,
                 a,
-                ..
             } => {
                 self.device.free_rid(*y);
                 self.device.free_rid(*u);
