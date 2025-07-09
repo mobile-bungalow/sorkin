@@ -1,0 +1,11 @@
+[package]
+name = "sorkin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ffmpeg-next = "7.1"
+godot = "0.1.3"
