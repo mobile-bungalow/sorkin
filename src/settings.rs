@@ -4,26 +4,19 @@ const SETTING_THREAD_COUNT: &str = "sorkin_movie_writer/thread_count";
 const SETTING_CODEC: &str = "sorkin_movie_writer/codec";
 const SETTING_QUALITY: &str = "sorkin_movie_writer/quality";
 const SETTING_ALPHA_CHANNEL: &str = "sorkin_movie_writer/alpha_channel";
-#[derive(Clone)]
+
+#[derive(Clone, Debug)]
 pub struct EncoderConfig {
     pub thread_count: u32,
     pub quality: Quality,
     pub alpha_channel: bool,
-    pub codec: Codec,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Quality {
     Realtime,
     Good,
     Best,
-}
-
-#[derive(Clone)]
-pub enum Codec {
-    VP9,
-    H264,
-    AV1,
 }
 
 impl Default for EncoderConfig {
@@ -32,7 +25,6 @@ impl Default for EncoderConfig {
             thread_count: 0, // 0 = auto-detect
             quality: Quality::Realtime,
             alpha_channel: false,
-            codec: Codec::VP9,
         }
     }
 }
@@ -45,16 +37,6 @@ impl EncoderConfig {
             .get_setting(SETTING_THREAD_COUNT.into())
             .try_to::<u32>()
             .unwrap_or(0);
-
-        let codec = project_settings
-            .get_setting(SETTING_CODEC.into())
-            .try_to::<GString>()
-            .map(|s| match s.to_string().as_str() {
-                "H264" => Codec::H264,
-                "AV1" => Codec::AV1,
-                _ => Codec::VP9,
-            })
-            .unwrap_or(Codec::VP9);
 
         let quality = project_settings
             .get_setting(SETTING_QUALITY.into())
@@ -77,7 +59,6 @@ impl EncoderConfig {
             thread_count,
             quality,
             alpha_channel,
-            codec,
         }
     }
 
@@ -122,19 +103,6 @@ impl EncoderConfig {
                 "description": "Include alpha channel (transparency) in the file? This will slow down encoding and is only possible if the true."
             };
             project_settings.add_property_info(alpha_info);
-        }
-
-        let codec_name = SETTING_CODEC.to_godot();
-        if !project_settings.has_setting(codec_name.clone()) {
-            project_settings.set((&codec_name).into(), "VP9".to_variant());
-
-            let codec_info = dict! {
-                "name": codec_name.clone(),
-                "type": VariantType::STRING,
-                "hint": PropertyHint::ENUM,
-                "hint_string": "VP9".to_godot()
-            };
-            project_settings.add_property_info(codec_info);
         }
 
         godot_print!("Sorkin encoder settings registered in Editor Settings under Sorkin category");

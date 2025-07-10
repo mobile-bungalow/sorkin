@@ -17,7 +17,7 @@ pub const OPUS_FRAME_SIZE: usize = 960;
 pub const STEREO_CHANNELS: u16 = 2;
 
 impl OpusEncoder {
-    pub fn new(sample_rate: u32, speaker_mode: SpeakerMode) -> Result<Self, Error> {
+    pub fn new(sample_rate: u32, speaker_mode: SpeakerMode, config: &crate::settings::EncoderConfig) -> Result<Self, Error> {
         let channels = match speaker_mode {
             SpeakerMode::STEREO => 2,
             SpeakerMode::SURROUND_31 => 4,
@@ -53,7 +53,17 @@ impl OpusEncoder {
         encoder.set_channel_layout(channel_layout);
 
         let mut dict = ffmpeg::Dictionary::new();
-        dict.set("compression_level", "5");
+        
+        // Apply encoder config settings for audio quality
+        let compression_level = match config.quality {
+            crate::settings::Quality::Realtime => "10", // Fastest encoding
+            crate::settings::Quality::Good => "5",      // Balanced quality/speed
+            crate::settings::Quality::Best => "0",      // Highest quality
+        };
+        dict.set("compression_level", compression_level);
+        dict.set("application", "audio");
+        dict.set("vbr", "on");
+        dict.set("bitrate", "128000");
 
         let encoder = encoder
             .open_as_with(ffmpeg::codec::Id::OPUS, dict)

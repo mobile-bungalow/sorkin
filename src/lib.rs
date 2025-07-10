@@ -120,7 +120,7 @@ impl IMovieWriter for SorkinWriter {
                 let height = size.y as u32;
 
                 match (
-                    VP9Encoder::new(path.clone(), width, height, self.fps as f64),
+                    VP9Encoder::new(path.clone(), width, height, self.fps as f64, &self.config),
                     ConversionContext::new(
                         godot::classes::image::Format::RGBA8,
                         ffmpeg::format::Pixel::YUV420P,
@@ -282,6 +282,7 @@ impl VP9Encoder {
         height: u32,
         fps: f64,
         global_header: bool,
+        config: &EncoderConfig,
     ) -> Result<Video, Error> {
         let mut encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
             .encoder()
@@ -304,16 +305,31 @@ impl VP9Encoder {
         dict.set("lag-in-frames", "0");
         dict.set("row-mt", "1");
         dict.set("speed", "5");
-        dict.set("threads", "0");
-        dict.set("quality", "good");
-        dict.set("deadline", "realtime");
+
+        // Apply encoder config settings
+        let thread_count_str = config.thread_count.to_string();
+        dict.set("threads", &thread_count_str);
+
+        let quality_str = match config.quality {
+            settings::Quality::Realtime => "realtime",
+            settings::Quality::Good => "good",
+            settings::Quality::Best => "best",
+        };
+        dict.set("quality", quality_str);
+        dict.set("deadline", quality_str);
 
         encoder
             .open_as_with(ffmpeg::codec::Id::VP9, dict)
             .map_err(|e| Error::Encoding(format!("Failed to open encoder: {e}")))
     }
 
-    fn new(path: String, width: u32, height: u32, fps: f64) -> Result<Self, Error> {
+    fn new(
+        path: String,
+        width: u32,
+        height: u32,
+        fps: f64,
+        config: &EncoderConfig,
+    ) -> Result<Self, Error> {
         let mut output_context = ffmpeg::format::output(&path)?;
 
         let global_header = output_context
@@ -328,19 +344,20 @@ impl VP9Encoder {
             let mut video_stream =
                 output_context.add_stream(ffmpeg::encoder::find(ffmpeg::codec::Id::VP9))?;
 
-            let encoder = Self::configure_encoder(codec, width, height, fps, global_header)?;
+            let encoder =
+                Self::configure_encoder(codec, width, height, fps, global_header, config)?;
             video_stream.set_time_base((1, (fps as i32) * 1000));
             video_stream.set_parameters(&encoder);
             video_stream.index()
         };
 
-        // todo: check config
-        let (audio_stream_index, audio_encoder) = if true {
+        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") {
             let opus_encoder = OpusEncoder::new(
                 audio::OPUS_SAMPLE_RATE,
                 godot::engine::audio_server::SpeakerMode::STEREO,
+                config,
             )
-            .map_err(|e| Error::Encoding(format!("Failed to create Opus encoder: {:?}", e)))?;
+            .map_err(|e| Error::Encoding(format!("Failed to create Opus encoder: {e:?}")))?;
 
             let mut audio_stream = output_context.add_stream(opus_encoder.codec)?;
             audio_stream.set_time_base(opus_encoder.time_base());
@@ -351,7 +368,7 @@ impl VP9Encoder {
             (None, None)
         };
 
-        let encoder = Self::configure_encoder(codec, width, height, fps, global_header)?;
+        let encoder = Self::configure_encoder(codec, width, height, fps, global_header, config)?;
 
         output_context.write_header()?;
 
@@ -393,7 +410,7 @@ impl VP9Encoder {
 
                 packet
                     .write_interleaved(&mut self.output_context)
-                    .map_err(|e| Error::Encoding(format!("Failed to write audio packet: {}", e)))?;
+                    .map_err(|e| Error::Encoding(format!("Failed to write audio packet: {e}")))?;
             }
         }
         Ok(())
