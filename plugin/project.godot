@@ -31,3 +31,10 @@ movie_writer/movie_file="/Users/paulmay/Desktop/testo.mp4"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/sorkin/plugin.cfg")
+
+[sorkin]
+
+thread_count=0
+quality="Realtime"
+alpha_channel=false
+codec="VP9"

@@ -3,13 +3,16 @@ use std::{ffi::c_void, path::PathBuf};
 use ffmpeg::encoder::Video;
 use ffmpeg_next::{self as ffmpeg, encoder};
 use godot::{
-    engine::{audio_server::SpeakerMode, Engine, IMovieWriter, MovieWriter},
+    engine::{audio_server::SpeakerMode, Engine, IMovieWriter, MovieWriter, ProjectSettings},
     global::Error as GodotError,
     prelude::*,
 };
 
 mod conversion;
+mod settings;
+
 use conversion::ConversionContext;
+use settings::{Codec, EncoderConfig, Quality};
 
 #[derive(Debug)]
 pub enum Error {
@@ -34,6 +37,9 @@ pub struct SorkinWriter {
     frame_count: usize,
     fps: u32,
     output_path: Option<String>,
+    config: EncoderConfig,
+    total_frame_time: f64,
+    recording_start_time: Option<std::time::Instant>,
 }
 
 const DEFAULT_MIX_RATE_HZ: u32 = 44_100;
@@ -48,6 +54,9 @@ impl IMovieWriter for SorkinWriter {
             frame_count: 0,
             fps: 30,
             output_path: None,
+            config: EncoderConfig::from_project_settings(),
+            total_frame_time: 0.0,
+            recording_start_time: None,
         }
     }
 
@@ -84,7 +93,9 @@ impl IMovieWriter for SorkinWriter {
         self.fps = fps;
         self.frame_count = 0;
         self.output_path = Some(path.to_string());
-        
+        self.total_frame_time = 0.0;
+        self.recording_start_time = Some(std::time::Instant::now());
+
         // We'll create the encoder and conversion context on first frame
         // to use the actual frame dimensions
         GodotError::OK
@@ -94,6 +105,7 @@ impl IMovieWriter for SorkinWriter {
         frame_image: Gd<godot::classes::Image>,
         _audio_frame_block: *const c_void,
     ) -> GodotError {
+        let frame_start = std::time::Instant::now();
         let size = frame_image.get_size();
 
         // Initialize encoder on first frame with actual frame dimensions
@@ -101,7 +113,7 @@ impl IMovieWriter for SorkinWriter {
             if let Some(ref path) = self.output_path {
                 let width = size.x as u32;
                 let height = size.y as u32;
-                
+
                 match (
                     VP9Encoder::new(path.clone(), width, height, self.fps as f64),
                     ConversionContext::new(
@@ -148,6 +160,8 @@ impl IMovieWriter for SorkinWriter {
             match encoder.write_frame(&frame) {
                 Ok(_) => {
                     self.frame_count += 1;
+                    let frame_time = frame_start.elapsed();
+                    self.total_frame_time += frame_time.as_secs_f64();
                     GodotError::OK
                 }
                 Err(_) => GodotError::ERR_FILE_CANT_WRITE,
@@ -162,9 +176,22 @@ impl IMovieWriter for SorkinWriter {
             self.conversion_context.take();
             match encoder.finish() {
                 Ok(_) => {
+                    let average_frame_time = if self.frame_count > 0 {
+                        self.total_frame_time / self.frame_count as f64
+                    } else {
+                        0.0
+                    };
+
+                    let total_recording_time = self
+                        .recording_start_time
+                        .map(|start| start.elapsed().as_secs_f64())
+                        .unwrap_or(0.0);
+
                     godot_print!(
-                        "Video encoding completed successfully. Total frames: {}",
-                        self.frame_count
+                        "Video encoding completed successfully. Total frames: {}, Average frame time: {:.2}ms, Total recording time: {:.2}s",
+                        self.frame_count,
+                        average_frame_time * 1000.0,
+                        total_recording_time
                     );
                 }
                 Err(e) => {
@@ -182,6 +209,43 @@ struct VP9Encoder {
 }
 
 impl VP9Encoder {
+    fn configure_encoder(
+        codec: ffmpeg_next::Codec,
+        width: u32,
+        height: u32,
+        fps: f64,
+        global_header: bool,
+    ) -> Result<Video, Error> {
+        let mut encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
+            .encoder()
+            .video()
+            .map_err(|e| Error::Encoding(format!("Could not create encoder context: {}", e)))?;
+
+        encoder.set_width(width);
+        encoder.set_height(height);
+        encoder.set_format(ffmpeg::format::Pixel::YUV420P);
+        encoder.set_time_base((1, (fps as i32) * 1000));
+        encoder.set_frame_rate(Some((fps as i32, 1)));
+
+        if global_header {
+            encoder.set_flags(ffmpeg::codec::Flags::GLOBAL_HEADER);
+        }
+
+        let mut dict = ffmpeg::Dictionary::new();
+        dict.set("cpu-used", "5");
+        dict.set("auto-alt-ref", "0");
+        dict.set("lag-in-frames", "0");
+        dict.set("row-mt", "1");
+        dict.set("speed", "8");
+        dict.set("threads", "0");
+        dict.set("quality", "realtime");
+        dict.set("deadline", "realtime");
+
+        encoder
+            .open_as_with(ffmpeg::codec::Id::VP9, dict)
+            .map_err(|e| Error::Encoding(format!("Failed to open encoder: {}", e)))
+    }
+
     fn new(path: String, width: u32, height: u32, fps: f64) -> Result<Self, Error> {
         let mut output_context = ffmpeg::format::output(&path)?;
 
@@ -197,46 +261,13 @@ impl VP9Encoder {
             let mut video_stream =
                 output_context.add_stream(ffmpeg::encoder::find(ffmpeg::codec::Id::VP9))?;
 
-            let mut encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
-                .encoder()
-                .video()
-                .map_err(|e| Error::Encoding(format!("Could not create encoder context: {}", e)))?;
-
-            encoder.set_width(width);
-            encoder.set_height(height);
-            encoder.set_format(ffmpeg::format::Pixel::YUV420P);
-            encoder.set_time_base((1, (fps as i32) * 1000));
-            encoder.set_frame_rate(Some((fps as i32, 1)));
-
-            if global_header {
-                encoder.set_flags(ffmpeg::codec::Flags::GLOBAL_HEADER);
-            }
-
+            let encoder = Self::configure_encoder(codec, width, height, fps, global_header)?;
             video_stream.set_time_base((1, (fps as i32) * 1000));
-
-            let encoder = encoder.open_as(ffmpeg::codec::Id::VP9)?;
             video_stream.set_parameters(&encoder);
-
             video_stream.index()
         };
 
-        let encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
-            .encoder()
-            .video()
-            .map_err(|e| Error::Encoding(format!("Could not create encoder context: {}", e)))?;
-
-        let mut encoder = encoder;
-        encoder.set_width(width);
-        encoder.set_height(height);
-        encoder.set_format(ffmpeg::format::Pixel::YUV420P);
-        encoder.set_time_base((1, (fps as i32) * 1000));
-        encoder.set_frame_rate(Some((fps as i32, 1)));
-
-        if global_header {
-            encoder.set_flags(ffmpeg::codec::Flags::GLOBAL_HEADER);
-        }
-
-        let encoder = encoder.open_as(ffmpeg::codec::Id::VP9)?;
+        let encoder = Self::configure_encoder(codec, width, height, fps, global_header)?;
 
         output_context.write_header()?;
 
@@ -290,6 +321,9 @@ unsafe impl ExtensionLibrary for SorkinExtension {
 
     fn on_level_init(level: InitLevel) {
         if level == InitLevel::Scene {
+            // Register project settings first
+            EncoderConfig::register_project_settings();
+
             godot_print!("Registering Sorkin writer singleton.");
             let writer = SorkinWriter::new_alloc();
             Engine::singleton()
