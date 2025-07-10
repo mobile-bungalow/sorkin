@@ -46,11 +46,6 @@ pub struct SorkinWriter {
     audio_samples_per_video_frame: usize,
 }
 
-const DEFAULT_MIX_RATE_HZ: u32 = 44_100;
-const OPUS_SAMPLE_RATE: u32 = 48_000;
-const OPUS_FRAME_SIZE: usize = 960;
-const STEREO_CHANNELS: u16 = 2;
-
 #[godot_api]
 impl IMovieWriter for SorkinWriter {
     fn init(base: Base<MovieWriter>) -> Self {
@@ -81,7 +76,7 @@ impl IMovieWriter for SorkinWriter {
     }
 
     fn get_audio_mix_rate(&self) -> u32 {
-        OPUS_SAMPLE_RATE
+        audio::OPUS_SAMPLE_RATE
     }
 
     fn get_audio_speaker_mode(&self) -> SpeakerMode {
@@ -106,7 +101,7 @@ impl IMovieWriter for SorkinWriter {
 
         let audio_mix_rate = self.get_audio_mix_rate();
         self.audio_samples_per_video_frame =
-            (audio_mix_rate / fps) as usize * STEREO_CHANNELS as usize;
+            (audio_mix_rate / fps) as usize * audio::STEREO_CHANNELS as usize;
         self.audio_buffer.clear();
 
         GodotError::OK
@@ -150,7 +145,6 @@ impl IMovieWriter for SorkinWriter {
         if let (Some(encoder), Some(conversion_context)) =
             (&mut self.encoder, &mut self.conversion_context)
         {
-            // Now frame dimensions will match conversion context dimensions
             let mut frame = ffmpeg::frame::Video::new(
                 ffmpeg::format::Pixel::YUV420P,
                 conversion_context.width,
@@ -190,7 +184,8 @@ impl IMovieWriter for SorkinWriter {
 
                         self.audio_buffer.extend_from_slice(&audio_data);
 
-                        let opus_frame_size_total = OPUS_FRAME_SIZE * STEREO_CHANNELS as usize;
+                        let opus_frame_size_total =
+                            audio::OPUS_FRAME_SIZE * audio::STEREO_CHANNELS as usize;
 
                         while self.audio_buffer.len() >= opus_frame_size_total {
                             let opus_frame_data: Vec<f32> =
@@ -221,8 +216,9 @@ impl IMovieWriter for SorkinWriter {
 
     fn write_end(&mut self) {
         if let Some(mut encoder) = self.encoder.take() {
-            if !self.audio_buffer.is_empty() {
-                let opus_frame_size_total = OPUS_FRAME_SIZE * STEREO_CHANNELS as usize;
+            if let Some(audio_encoder) = encoder.audio_encoder.take() {
+                let opus_frame_size_total = audio_encoder.encoder.frame_size() as usize
+                    * audio_encoder.encoder.channels() as usize;
 
                 if self.audio_buffer.len() < opus_frame_size_total {
                     self.audio_buffer.resize(opus_frame_size_total, 0.0);
@@ -338,9 +334,10 @@ impl VP9Encoder {
             video_stream.index()
         };
 
-        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") {
+        // todo: check config
+        let (audio_stream_index, audio_encoder) = if true {
             let opus_encoder = OpusEncoder::new(
-                OPUS_SAMPLE_RATE,
+                audio::OPUS_SAMPLE_RATE,
                 godot::engine::audio_server::SpeakerMode::STEREO,
             )
             .map_err(|e| Error::Encoding(format!("Failed to create Opus encoder: {:?}", e)))?;
@@ -379,26 +376,24 @@ impl VP9Encoder {
         audio_data: *const c_void,
         data_size: usize,
     ) -> Result<(), Error> {
-        if let Some(ref mut audio_encoder) = self.audio_encoder {
-            if let Some(audio_stream_index) = self.audio_stream_index {
-                let packets = audio_encoder.encode_audio_data(audio_data, data_size)?;
+        if let (Some(ref mut audio_encoder), Some(audio_stream_index)) =
+            (self.audio_encoder.as_mut(), self.audio_stream_index)
+        {
+            let packets = audio_encoder.encode_audio_data(audio_data, data_size)?;
 
-                for mut packet in packets {
-                    packet.set_stream(audio_stream_index);
-                    packet.rescale_ts(
-                        audio_encoder.time_base(),
-                        self.output_context
-                            .stream(audio_stream_index)
-                            .unwrap()
-                            .time_base(),
-                    );
+            for mut packet in packets {
+                packet.set_stream(audio_stream_index);
+                packet.rescale_ts(
+                    audio_encoder.time_base(),
+                    self.output_context
+                        .stream(audio_stream_index)
+                        .unwrap()
+                        .time_base(),
+                );
 
-                    packet
-                        .write_interleaved(&mut self.output_context)
-                        .map_err(|e| {
-                            Error::Encoding(format!("Failed to write audio packet: {}", e))
-                        })?;
-                }
+                packet
+                    .write_interleaved(&mut self.output_context)
+                    .map_err(|e| Error::Encoding(format!("Failed to write audio packet: {}", e)))?;
             }
         }
         Ok(())
@@ -408,26 +403,25 @@ impl VP9Encoder {
         self.encoder.send_eof()?;
         self.receive_and_write_video_packets()?;
 
-        // Finish audio encoder if present
-        if let Some(mut audio_encoder) = self.audio_encoder.take() {
-            if let Some(audio_stream_index) = self.audio_stream_index {
-                match audio_encoder.finish() {
-                    Ok(packets) => {
-                        for mut packet in packets {
-                            packet.set_stream(audio_stream_index);
-                            packet.rescale_ts(
-                                audio_encoder.time_base(),
-                                self.output_context
-                                    .stream(audio_stream_index)
-                                    .unwrap()
-                                    .time_base(),
-                            );
-                            packet.write_interleaved(&mut self.output_context)?;
-                        }
+        if let (Some(ref mut audio_encoder), Some(audio_stream_index)) =
+            (self.audio_encoder.as_mut(), self.audio_stream_index)
+        {
+            match audio_encoder.finish() {
+                Ok(packets) => {
+                    for mut packet in packets {
+                        packet.set_stream(audio_stream_index);
+                        packet.rescale_ts(
+                            audio_encoder.time_base(),
+                            self.output_context
+                                .stream(audio_stream_index)
+                                .unwrap()
+                                .time_base(),
+                        );
+                        packet.write_interleaved(&mut self.output_context)?;
                     }
-                    Err(e) => {
-                        godot_error!("Failed to finish audio encoder: {:?}", e);
-                    }
+                }
+                Err(e) => {
+                    godot_error!("Failed to finish audio encoder: {:?}", e);
                 }
             }
         }
@@ -465,7 +459,6 @@ unsafe impl ExtensionLibrary for SorkinExtension {
 
     fn on_level_init(level: InitLevel) {
         if level == InitLevel::Scene {
-            // Register project settings first
             EncoderConfig::register_project_settings();
 
             godot_print!("Registering Sorkin writer singleton.");
