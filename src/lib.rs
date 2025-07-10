@@ -81,15 +81,7 @@ impl IMovieWriter for SorkinWriter {
     }
 
     fn get_audio_mix_rate(&self) -> u32 {
-        if self
-            .output_path
-            .as_ref()
-            .map_or(false, |path| path.ends_with(".webm"))
-        {
-            OPUS_SAMPLE_RATE
-        } else {
-            DEFAULT_MIX_RATE_HZ
-        }
+        OPUS_SAMPLE_RATE
     }
 
     fn get_audio_speaker_mode(&self) -> SpeakerMode {
@@ -177,7 +169,6 @@ impl IMovieWriter for SorkinWriter {
             match encoder.write_frame(&frame) {
                 Ok(_) => {
                     if !audio_frame_block.is_null() {
-                        // Godot provides audio data as 32-bit signed integers
                         let as_i32_samples = unsafe {
                             std::slice::from_raw_parts(
                                 audio_frame_block as *const i32,
@@ -185,11 +176,16 @@ impl IMovieWriter for SorkinWriter {
                             )
                         };
 
-                        // Convert i32 to f32 using the same normalization as typical audio processing
-                        // Divide by 2^31 (2147483648.0) to get proper [-1.0, 1.0) range
                         let audio_data: Vec<f32> = as_i32_samples
                             .iter()
-                            .map(|&sample| sample as f32 / i32::MAX as f32)
+                            .map(|&sample| {
+                                // without this we get crazy clipping on edge cases
+                                if sample == i32::MIN {
+                                    -1.0f32
+                                } else {
+                                    sample as f32 / i32::MAX as f32
+                                }
+                            })
                             .collect();
 
                         self.audio_buffer.extend_from_slice(&audio_data);
