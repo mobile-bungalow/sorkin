@@ -26,13 +26,20 @@ project/assembly_name="plugin"
 
 [editor]
 
-movie_writer/movie_file="/Users/paulmay/Desktop/testo.mp4"
+movie_writer/movie_file="/Users/paulmay/Desktop/testo.webm"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/sorkin/plugin.cfg")
 
 [sorkin]
+
+thread_count=0
+quality="Realtime"
+alpha_channel=false
+codec="VP9"
+
+[sorkin_movie_writer]
 
 thread_count=0
 quality="Realtime"

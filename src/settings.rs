@@ -1,8 +1,4 @@
-use godot::{
-    engine::ProjectSettings,
-    global::PropertyHint,
-    prelude::*,
-};
+use godot::{engine::ProjectSettings, global::PropertyHint, prelude::*};
 
 const SETTING_THREAD_COUNT: &str = "sorkin_movie_writer/thread_count";
 const SETTING_CODEC: &str = "sorkin_movie_writer/codec";
@@ -96,7 +92,8 @@ impl EncoderConfig {
                 "name": thread_count_name.clone(),
                 "type": VariantType::INT,
                 "hint": PropertyHint::RANGE,
-                "hint_string": "0,32,1,or_greater".to_godot()
+                "hint_string": "0,32,1,or_greater".to_godot(),
+                "description": "The number of threads to dedicate to encoding the video - 0 means all available",
             };
             project_settings.add_property_info(thread_count_info);
         }
@@ -122,7 +119,7 @@ impl EncoderConfig {
                 "name": alpha_name.clone(),
                 "type": VariantType::BOOL,
                 "hint": PropertyHint::NONE,
-                "hint_string": "".to_godot()
+                "description": "Include alpha channel (transparency) in the file? This will slow down encoding and is only possible if the true."
             };
             project_settings.add_property_info(alpha_info);
         }
@@ -135,7 +132,7 @@ impl EncoderConfig {
                 "name": codec_name.clone(),
                 "type": VariantType::STRING,
                 "hint": PropertyHint::ENUM,
-                "hint_string": "VP9,H264,AV1".to_godot()
+                "hint_string": "VP9".to_godot()
             };
             project_settings.add_property_info(codec_info);
         }
