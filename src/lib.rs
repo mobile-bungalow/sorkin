@@ -3,7 +3,7 @@ use std::{ffi::c_void, path::PathBuf};
 use ffmpeg::encoder::Video;
 use ffmpeg_next::{self as ffmpeg, encoder};
 use godot::{
-    engine::{audio_server::SpeakerMode, Engine, IMovieWriter, MovieWriter, ProjectSettings},
+    engine::{audio_server::SpeakerMode, Engine, IMovieWriter, MovieWriter},
     global::Error as GodotError,
     prelude::*,
 };
@@ -12,7 +12,7 @@ mod conversion;
 mod settings;
 
 use conversion::ConversionContext;
-use settings::{Codec, EncoderConfig, Quality};
+use settings::EncoderConfig;
 
 #[derive(Debug)]
 pub enum Error {
@@ -219,7 +219,7 @@ impl VP9Encoder {
         let mut encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
             .encoder()
             .video()
-            .map_err(|e| Error::Encoding(format!("Could not create encoder context: {}", e)))?;
+            .map_err(|e| Error::Encoding(format!("Could not create encoder context: {e}")))?;
 
         encoder.set_width(width);
         encoder.set_height(height);
@@ -243,7 +243,7 @@ impl VP9Encoder {
 
         encoder
             .open_as_with(ffmpeg::codec::Id::VP9, dict)
-            .map_err(|e| Error::Encoding(format!("Failed to open encoder: {}", e)))
+            .map_err(|e| Error::Encoding(format!("Failed to open encoder: {e}")))
     }
 
     fn new(path: String, width: u32, height: u32, fps: f64) -> Result<Self, Error> {
