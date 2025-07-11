@@ -16,19 +16,19 @@ bundle: build bundle-platform
 [macos]
 bundle-platform:
     mkdir -p {{bundle_dir}}/bin
-    cp -r assets {{bundle_dir}}
+    cp -r assets/ {{bundle_dir}}
     cp {{target_dir}}/release/lib{{package_name}}.dylib {{bundle_dir}}/bin/lib{{package_name}}.dylib
 
 [linux]
 bundle-platform:
     mkdir -p {{bundle_dir}}/bin
-    cp -r assets {{bundle_dir}}
+    cp -r assets/ {{bundle_dir}}
     cp {{target_dir}}/release/lib{{package_name}}.so {{bundle_dir}}/bin/lib{{package_name}}.so
 
 [windows]
 bundle-platform:
     New-Item -ItemType Directory -Force -Path "{{bundle_dir}}\bin"
-    Copy-Item -Recurse -Force "assets" "{{bundle_dir}}"
+    Copy-Item -Recurse -Force "assets\\" "{{bundle_dir}}"
     Copy-Item -Force "{{target_dir}}\release\{{package_name}}.dll" "{{bundle_dir}}\bin\{{package_name}}.dll"
 
 [windows]
