@@ -33,6 +33,7 @@ impl From<ffmpeg::Error> for Error {
 #[derive(GodotClass)]
 #[class(base=MovieWriter)]
 pub struct SorkinWriter {
+    paused: bool,
     base: Base<MovieWriter>,
     encoder: Option<VP9Encoder>,
     alpha_encoder: Option<VP9Encoder>,
@@ -45,6 +46,20 @@ pub struct SorkinWriter {
     recording_start_time: Option<std::time::Instant>,
     audio_buffer: Vec<f32>,
     audio_samples_per_video_frame: usize,
+}
+
+#[godot_api]
+impl SorkinWriter {
+    /// Pause recording
+    #[func]
+    fn toggle_paused(&mut self) {
+        self.paused = !self.paused
+    }
+
+    #[func]
+    fn is_paused(&self) -> bool {
+        self.paused
+    }
 }
 
 #[godot_api]
@@ -63,6 +78,7 @@ impl IMovieWriter for SorkinWriter {
             recording_start_time: None,
             audio_buffer: Vec::new(),
             audio_samples_per_video_frame: 0,
+            paused: false,
         }
     }
 
@@ -121,6 +137,10 @@ impl IMovieWriter for SorkinWriter {
         frame_image: Gd<godot::classes::Image>,
         audio_frame_block: *const c_void,
     ) -> GodotError {
+        if self.paused {
+            return GodotError::OK;
+        }
+
         let frame_start = std::time::Instant::now();
         let size = frame_image.get_size();
 
