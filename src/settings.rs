@@ -1,15 +1,16 @@
 use godot::{engine::ProjectSettings, global::PropertyHint, prelude::*};
 
 const SETTING_THREAD_COUNT: &str = "sorkin_movie_writer/thread_count";
-const SETTING_CODEC: &str = "sorkin_movie_writer/codec";
 const SETTING_QUALITY: &str = "sorkin_movie_writer/quality";
 const SETTING_ALPHA_CHANNEL: &str = "sorkin_movie_writer/alpha_channel";
+const SETTING_ENABLE_AUDIO: &str = "sorkin_movie_writer/enable_audio";
 
 #[derive(Clone, Debug)]
 pub struct EncoderConfig {
     pub thread_count: u32,
     pub quality: Quality,
     pub alpha_channel: bool,
+    pub enable_audio: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -25,6 +26,7 @@ impl Default for EncoderConfig {
             thread_count: 0, // 0 = auto-detect
             quality: Quality::Realtime,
             alpha_channel: false,
+            enable_audio: true,
         }
     }
 }
@@ -55,10 +57,17 @@ impl EncoderConfig {
             .ok()
             .unwrap_or(false);
 
+        let enable_audio = project_settings
+            .get_setting(SETTING_ENABLE_AUDIO.into())
+            .try_to::<bool>()
+            .ok()
+            .unwrap_or(true);
+
         Self {
             thread_count,
             quality,
             alpha_channel,
+            enable_audio,
         }
     }
 
@@ -103,6 +112,19 @@ impl EncoderConfig {
                 "description": "Include alpha channel (transparency) in the file? This will slow down encoding and is only possible if the true."
             };
             project_settings.add_property_info(alpha_info);
+        }
+
+        let enable_audio_name = SETTING_ENABLE_AUDIO.to_godot();
+        if !project_settings.has_setting(enable_audio_name.clone()) {
+            project_settings.set(enable_audio_name.clone().into(), true.to_variant());
+
+            let enable_audio_info = dict! {
+                "name": enable_audio_name.clone(),
+                "type": VariantType::BOOL,
+                "hint": PropertyHint::NONE,
+                "description": "Include audio stream in the WebM file. Disable for video-only output."
+            };
+            project_settings.add_property_info(enable_audio_info);
         }
 
         godot_print!("Sorkin encoder settings registered in Editor Settings under Sorkin category");

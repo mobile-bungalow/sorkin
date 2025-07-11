@@ -76,7 +76,11 @@ impl IMovieWriter for SorkinWriter {
     }
 
     fn get_audio_mix_rate(&self) -> u32 {
-        audio::OPUS_SAMPLE_RATE
+        if self.config.enable_audio {
+            audio::OPUS_SAMPLE_RATE
+        } else {
+            0
+        }
     }
 
     fn get_audio_speaker_mode(&self) -> SpeakerMode {
@@ -100,8 +104,12 @@ impl IMovieWriter for SorkinWriter {
         self.recording_start_time = Some(std::time::Instant::now());
 
         let audio_mix_rate = self.get_audio_mix_rate();
-        self.audio_samples_per_video_frame =
-            (audio_mix_rate / fps) as usize * audio::STEREO_CHANNELS as usize;
+        if audio_mix_rate > 0 {
+            self.audio_samples_per_video_frame =
+                (audio_mix_rate / fps) as usize * audio::STEREO_CHANNELS as usize;
+        } else {
+            self.audio_samples_per_video_frame = 0;
+        }
         self.audio_buffer.clear();
 
         GodotError::OK
@@ -162,7 +170,7 @@ impl IMovieWriter for SorkinWriter {
 
             match encoder.write_frame(&frame) {
                 Ok(_) => {
-                    if !audio_frame_block.is_null() {
+                    if !audio_frame_block.is_null() && self.config.enable_audio {
                         let as_i32_samples = unsafe {
                             std::slice::from_raw_parts(
                                 audio_frame_block as *const i32,
@@ -216,24 +224,26 @@ impl IMovieWriter for SorkinWriter {
 
     fn write_end(&mut self) {
         if let Some(mut encoder) = self.encoder.take() {
-            if let Some(audio_encoder) = encoder.audio_encoder.take() {
-                let opus_frame_size_total = audio_encoder.encoder.frame_size() as usize
-                    * audio_encoder.encoder.channels() as usize;
+            if self.config.enable_audio && !self.audio_buffer.is_empty() {
+                if let Some(audio_encoder) = encoder.audio_encoder.as_ref() {
+                    let opus_frame_size_total = audio_encoder.encoder.frame_size() as usize
+                        * audio_encoder.encoder.channels() as usize;
 
-                if self.audio_buffer.len() < opus_frame_size_total {
-                    self.audio_buffer.resize(opus_frame_size_total, 0.0);
-                }
+                    if self.audio_buffer.len() < opus_frame_size_total {
+                        self.audio_buffer.resize(opus_frame_size_total, 0.0);
+                    }
 
-                while self.audio_buffer.len() >= opus_frame_size_total {
-                    let opus_frame_data: Vec<f32> =
-                        self.audio_buffer.drain(0..opus_frame_size_total).collect();
-                    let audio_block_size = opus_frame_data.len() * size_of::<f32>();
+                    while self.audio_buffer.len() >= opus_frame_size_total {
+                        let opus_frame_data: Vec<f32> =
+                            self.audio_buffer.drain(0..opus_frame_size_total).collect();
+                        let audio_block_size = opus_frame_data.len() * size_of::<f32>();
 
-                    if let Err(e) = encoder.write_audio_data(
-                        opus_frame_data.as_ptr() as *const c_void,
-                        audio_block_size,
-                    ) {
-                        godot_error!("Failed to write final audio data: {:?}", e);
+                        if let Err(e) = encoder.write_audio_data(
+                            opus_frame_data.as_ptr() as *const c_void,
+                            audio_block_size,
+                        ) {
+                            godot_error!("Failed to write final audio data: {:?}", e);
+                        }
                     }
                 }
             }
@@ -351,7 +361,7 @@ impl VP9Encoder {
             video_stream.index()
         };
 
-        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") {
+        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") && config.enable_audio {
             let opus_encoder = OpusEncoder::new(
                 audio::OPUS_SAMPLE_RATE,
                 godot::engine::audio_server::SpeakerMode::STEREO,
@@ -471,13 +481,15 @@ struct SorkinExtension;
 #[gdextension]
 unsafe impl ExtensionLibrary for SorkinExtension {
     fn min_level() -> InitLevel {
-        InitLevel::Scene
+        InitLevel::Editor
     }
 
     fn on_level_init(level: InitLevel) {
-        if level == InitLevel::Scene {
+        if level == InitLevel::Editor {
             EncoderConfig::register_project_settings();
+        }
 
+        if level == InitLevel::Scene {
             godot_print!("Registering Sorkin writer singleton.");
             let writer = SorkinWriter::new_alloc();
             Engine::singleton()

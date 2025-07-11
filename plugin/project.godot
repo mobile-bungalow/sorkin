@@ -13,7 +13,7 @@ config_version=5
 config/name="plugin"
 run/main_scene="res://node_2d.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="uid://buskvtt0lfxvn"
 
 [display]
 
@@ -26,22 +26,15 @@ project/assembly_name="plugin"
 
 [editor]
 
-movie_writer/movie_file="/Users/paulmay/Desktop/testo.webm"
+movie_writer/movie_file="/Users/paulmay/Desktop/testo.avi"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/sorkin/plugin.cfg")
 
-[sorkin]
-
-thread_count=0
-quality="Realtime"
-alpha_channel=false
-codec="VP9"
-
 [sorkin_movie_writer]
 
+alpha_channel=false
 thread_count=0
 quality="Realtime"
-alpha_channel=false
-codec="VP9"
+enable_audio=false
