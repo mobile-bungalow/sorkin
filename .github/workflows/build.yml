@@ -9,73 +9,94 @@ on:
     types: [published]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            platform: linux
-            artifact_name: libsorkin.so
-          - os: macos-latest
-            platform: macos
-            artifact_name: libsorkin.dylib
-          - os: windows-latest
-            platform: windows
-            artifact_name: sorkin.dll
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    name: Linux - build
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends clang libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev libavdevice-dev pkg-config
+      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
-
       - name: Install Just
         uses: extractions/setup-just@v2
-
-      - name: Install FFmpeg (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev libavdevice-dev pkg-config
-
-      - name: Install FFmpeg (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          brew install ffmpeg pkg-config
-
-      - name: Install FFmpeg (Windows)
-        if: matrix.platform == 'windows'
-        run: |
-          choco install llvm ffmpeg
-          echo "FFMPEG_DIR=C:\tools\ffmpeg" >> $env:GITHUB_ENV
-          echo "C:\tools\ffmpeg\bin" >> $env:GITHUB_PATH
-
-      - name: Build plugin
+      - name: Build
         run: just bundle
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sorkin-${{ matrix.platform }}
+          name: sorkin-linux
           path: target/sorkin_addon/
 
-      - name: Create release archive
-        if: github.event_name == 'release'
+  build-macos:
+    name: macOS - build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
         run: |
-          cd target
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            powershell Compress-Archive -Path sorkin_addon -DestinationPath sorkin-${{ matrix.platform }}.zip
-          else
-            zip -r sorkin-${{ matrix.platform }}.zip sorkin_addon
-          fi
+          brew install ffmpeg pkg-config
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Just
+        uses: extractions/setup-just@v2
+      - name: Build
+        run: just bundle
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sorkin-macos
+          path: target/sorkin_addon/
 
+  build-windows:
+    name: Windows - build
+    runs-on: windows-latest
+    env:
+      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
+          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
+          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
+          7z x ffmpeg-release-full-shared.7z
+          mkdir ffmpeg
+          mv ffmpeg-*/* ffmpeg/
+          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
+          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Just
+        uses: extractions/setup-just@v2
+      - name: Build
+        run: just bundle
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sorkin-windows
+          path: target/sorkin_addon/
+
+  release:
+    if: github.event_name == 'release'
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create release archives
+        run: |
+          cd artifacts
+          for platform in linux macos windows; do
+            zip -r sorkin-${platform}.zip sorkin-${platform}/
+          done
       - name: Upload to release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: target/sorkin-${{ matrix.platform }}.zip
+          files: artifacts/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
