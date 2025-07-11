@@ -98,5 +98,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: artifacts/*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
