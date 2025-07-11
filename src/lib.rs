@@ -35,6 +35,7 @@ impl From<ffmpeg::Error> for Error {
 pub struct SorkinWriter {
     base: Base<MovieWriter>,
     encoder: Option<VP9Encoder>,
+    alpha_encoder: Option<VP9Encoder>,
     conversion_context: Option<ConversionContext>,
     frame_count: usize,
     fps: u32,
@@ -52,6 +53,7 @@ impl IMovieWriter for SorkinWriter {
         Self {
             base,
             encoder: None,
+            alpha_encoder: None,
             conversion_context: None,
             frame_count: 0,
             fps: 30,
@@ -127,17 +129,47 @@ impl IMovieWriter for SorkinWriter {
                 let width = size.x as u32;
                 let height = size.y as u32;
 
+                let alpha_encoder = if self.config.alpha_channel {
+                    let alpha_path = path.replace(".webm", "_alpha.webm");
+                    match VP9Encoder::new(
+                        alpha_path,
+                        width,
+                        height,
+                        self.fps as f64,
+                        &EncoderConfig {
+                            enable_audio: false,
+                            alpha_channel: false,
+                            ..self.config.clone()
+                        },
+                    ) {
+                        Ok(encoder) => Some(encoder),
+                        Err(e) => {
+                            godot_error!("Failed to initialize alpha encoder: {:?}", e);
+                            return GodotError::ERR_CANT_CREATE;
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                let pixel_format = if self.config.alpha_channel {
+                    ffmpeg::format::Pixel::YUVA420P
+                } else {
+                    ffmpeg::format::Pixel::YUV420P
+                };
+
                 match (
                     VP9Encoder::new(path.clone(), width, height, self.fps as f64, &self.config),
                     ConversionContext::new(
                         godot::classes::image::Format::RGBA8,
-                        ffmpeg::format::Pixel::YUV420P,
+                        pixel_format,
                         width,
                         height,
                     ),
                 ) {
                     (Ok(encoder), Ok(conversion_context)) => {
                         self.encoder = Some(encoder);
+                        self.alpha_encoder = alpha_encoder;
                         self.conversion_context = Some(conversion_context);
                     }
                     (Err(e), _) | (_, Err(e)) => {
@@ -159,7 +191,17 @@ impl IMovieWriter for SorkinWriter {
                 conversion_context.height,
             );
 
-            conversion_context.convert(frame_image, &mut frame);
+            let mut alpha_frame = if self.alpha_encoder.is_some() {
+                Some(ffmpeg::frame::Video::new(
+                    ffmpeg::format::Pixel::YUV420P,
+                    conversion_context.width,
+                    conversion_context.height,
+                ))
+            } else {
+                None
+            };
+
+            conversion_context.convert(frame_image, &mut frame, alpha_frame.as_mut());
 
             let pts = conversion::frame_to_pts(
                 self.frame_count as i64,
@@ -167,6 +209,16 @@ impl IMovieWriter for SorkinWriter {
                 encoder.encoder.time_base().1 as i64,
             );
             frame.set_pts(Some(pts));
+
+            // Handle alpha encoder if present
+            if let (Some(ref mut alpha_encoder), Some(mut alpha_frame)) =
+                (&mut self.alpha_encoder, alpha_frame)
+            {
+                alpha_frame.set_pts(Some(pts));
+                if let Err(e) = alpha_encoder.write_frame(&alpha_frame) {
+                    godot_error!("Failed to write alpha frame: {:?}", e);
+                }
+            }
 
             match encoder.write_frame(&frame) {
                 Ok(_) => {
@@ -244,6 +296,17 @@ impl IMovieWriter for SorkinWriter {
                         ) {
                             godot_error!("Failed to write final audio data: {:?}", e);
                         }
+                    }
+                }
+            }
+
+            if let Some(alpha_encoder) = self.alpha_encoder.take() {
+                match alpha_encoder.finish() {
+                    Ok(_) => {
+                        godot_print!("Alpha encoder finished successfully");
+                    }
+                    Err(e) => {
+                        godot_error!("Failed to finish alpha encoder: {:?}", e);
                     }
                 }
             }
@@ -361,7 +424,8 @@ impl VP9Encoder {
             video_stream.index()
         };
 
-        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") && config.enable_audio {
+        let (audio_stream_index, audio_encoder) = if path.ends_with(".webm") && config.enable_audio
+        {
             let opus_encoder = OpusEncoder::new(
                 audio::OPUS_SAMPLE_RATE,
                 godot::engine::audio_server::SpeakerMode::STEREO,
@@ -481,7 +545,7 @@ struct SorkinExtension;
 #[gdextension]
 unsafe impl ExtensionLibrary for SorkinExtension {
     fn min_level() -> InitLevel {
-        InitLevel::Editor
+        InitLevel::Scene
     }
 
     fn on_level_init(level: InitLevel) {

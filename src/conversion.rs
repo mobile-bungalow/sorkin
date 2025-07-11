@@ -165,6 +165,7 @@ impl ConversionContext {
         &mut self,
         mut input_image: Gd<Image>,
         frame: &mut ffmpeg_next::util::frame::Video,
+        alpha_frame: Option<&mut ffmpeg_next::util::frame::Video>,
     ) {
         input_image.convert(Format::RGBA8);
 
@@ -192,9 +193,10 @@ impl ConversionContext {
         self.device.submit();
         self.device.sync();
 
+        // Copy YUV channels to main frame
         for plane in 0..frame.planes() {
             let buf = frame.data_mut(plane);
-            let Channels::YUVA420p { y, u, v, a, .. } = self.channels;
+            let Channels::YUVA420p { y, u, v, .. } = self.channels;
             match plane {
                 0 => {
                     // luminance
@@ -215,13 +217,27 @@ impl ConversionContext {
                     let copy_len = buf.len().min(tex_slice.len());
                     buf[..copy_len].copy_from_slice(&tex_slice[..copy_len]);
                 }
-                3 => {
-                    let tex = self.device.texture_get_data(a, 0);
-                    let tex_slice = tex.as_slice();
-                    let copy_len = buf.len().min(tex_slice.len());
-                    buf[..copy_len].copy_from_slice(&tex_slice[..copy_len]);
-                }
                 _ => panic!("unsupported plane count"),
+            }
+        }
+
+        if let Some(alpha_frame) = alpha_frame {
+            let Channels::YUVA420p { a, .. } = self.channels;
+
+            let alpha_tex = self.device.texture_get_data(a, 0);
+            let alpha_tex_slice = alpha_tex.as_slice();
+            let alpha_y = alpha_frame.data_mut(0);
+            let copy_len = alpha_y.len().min(alpha_tex_slice.len());
+            alpha_y[..copy_len].copy_from_slice(&alpha_tex_slice[..copy_len]);
+
+            if alpha_frame.planes() > 1 {
+                let u_plane = alpha_frame.data_mut(1);
+                u_plane.fill(128);
+            }
+
+            if alpha_frame.planes() > 2 {
+                let v_plane = alpha_frame.data_mut(2);
+                v_plane.fill(128);
             }
         }
     }

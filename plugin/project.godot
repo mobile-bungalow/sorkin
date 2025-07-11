@@ -19,6 +19,8 @@ config/icon="uid://buskvtt0lfxvn"
 
 window/size/viewport_width=2048
 window/size/viewport_height=1200
+window/size/transparent=true
+window/per_pixel_transparency/allowed=true
 
 [dotnet]
 
@@ -26,15 +28,19 @@ project/assembly_name="plugin"
 
 [editor]
 
-movie_writer/movie_file="/Users/paulmay/Desktop/testo.avi"
+movie_writer/movie_file="/Users/paulmay/Desktop/testo.webm"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/sorkin/plugin.cfg")
 
+[rendering]
+
+viewport/transparent_background=true
+
 [sorkin_movie_writer]
 
-alpha_channel=false
+alpha_channel=true
 thread_count=0
 quality="Realtime"
 enable_audio=false
