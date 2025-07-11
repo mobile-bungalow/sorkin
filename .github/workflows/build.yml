@@ -96,8 +96,9 @@ jobs:
             zip -r sorkin-${platform}.zip sorkin-${platform}/
           done
       - name: Upload to release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         with:
-          files: artifacts/*.zip
-          draft: false
-          prerelease: false
+          artifacts: "artifacts/*.zip"
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
