@@ -39,7 +39,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev pkg-config
+          sudo apt-get install -y clang libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev libavdevice-dev pkg-config
 
       - name: Install FFmpeg (macOS)
         if: matrix.platform == 'macos'
@@ -49,7 +49,9 @@ jobs:
       - name: Install FFmpeg (Windows)
         if: matrix.platform == 'windows'
         run: |
-          choco install ffmpeg
+          choco install llvm ffmpeg
+          echo "FFMPEG_DIR=C:\tools\ffmpeg" >> $env:GITHUB_ENV
+          echo "C:\tools\ffmpeg\bin" >> $env:GITHUB_PATH
 
       - name: Build plugin
         run: just bundle
