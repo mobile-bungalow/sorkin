@@ -24,8 +24,6 @@ var sorkin = Sorkin.get_singleton()
 # Pause/resume recording
 sorkin.toggle_pause()
 
-# Stop recording
-sorkin.stop_recording()
 ```
 
 ### Dependencies
