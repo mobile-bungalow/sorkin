@@ -4,11 +4,11 @@ compatibility_minimum = 4.5
 reloadable = true
 
 [libraries]
-linux.debug.x86_64 =     "res://./bin/debug/libsorkin.so"
-linux.release.x86_64 =   "res://./bin/release/libsorkin.so"
-windows.debug.x86_64 =   "res://./bin/debug/sorkin.dll"
-windows.release.x86_64 = "res://./bin/release/sorkin.dll"
-macos.debug =            "res://./bin/debug/libsorkin.dylib"
-macos.release =          "res://./bin/release/libsorkin.dylib"
-macos.debug.arm64 =      "res://./bin/debug/libsorkin.dylib"
-macos.release.arm64 =    "res://./bin/release/libsorkin.dylib"
+linux.debug.x86_64 =     "res://./bin/libsorkin.so"
+linux.release.x86_64 =   "res://./bin/libsorkin.so"
+windows.debug.x86_64 =   "res://./bin/sorkin.dll"
+windows.release.x86_64 = "res://./bin/sorkin.dll"
+macos.debug =            "res://./bin/libsorkin.dylib"
+macos.release =          "res://./bin/libsorkin.dylib"
+macos.debug.arm64 =      "res://./bin/libsorkin.dylib"
+macos.release.arm64 =    "res://./bin/libsorkin.dylib"
