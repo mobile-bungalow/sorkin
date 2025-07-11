@@ -81,7 +81,7 @@ jobs:
           path: target/sorkin_addon/
 
   release:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
