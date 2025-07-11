@@ -27,3 +27,11 @@ sorkin.toggle_pause()
 # Stop recording
 sorkin.stop_recording()
 ```
+
+### Dependencies
+
+The plugin requires FFmpeg to be installed on the system:
+
+- **Linux**: Install through package manager (`sudo apt-get install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev`)
+- **macOS**: Install through Homebrew (`brew install ffmpeg`)
+- **Windows**: Install through Chocolatey (`choco install ffmpeg`) or download from [FFmpeg.org](https://ffmpeg.org/download.html)

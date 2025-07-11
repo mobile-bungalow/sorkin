@@ -2,11 +2,11 @@ name: Build Sorkin Plugin
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   release:
-    types: [ published ]
+    types: [published]
 
 jobs:
   build:
@@ -27,54 +27,53 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Just
-      uses: extractions/setup-just@v2
+      - name: Install Just
+        uses: extractions/setup-just@v2
 
-    - name: Install FFmpeg (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev pkg-config
+      - name: Install FFmpeg (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev pkg-config
 
-    - name: Install FFmpeg (macOS)
-      if: matrix.platform == 'macos'
-      run: |
-        brew install ffmpeg pkg-config
+      - name: Install FFmpeg (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install ffmpeg pkg-config
 
-    - name: Install FFmpeg (Windows)
-      if: matrix.platform == 'windows'
-      run: |
-        choco install ffmpeg
-        echo "FFMPEG_DIR=C:\tools\ffmpeg" >> $env:GITHUB_ENV
+      - name: Install FFmpeg (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install ffmpeg
 
-    - name: Build plugin
-      run: just bundle
+      - name: Build plugin
+        run: just bundle
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: sorkin-${{ matrix.platform }}
-        path: target/sorkin_addon/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sorkin-${{ matrix.platform }}
+          path: target/sorkin_addon/
 
-    - name: Create release archive
-      if: github.event_name == 'release'
-      run: |
-        cd target
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          powershell Compress-Archive -Path sorkin_addon -DestinationPath sorkin-${{ matrix.platform }}.zip
-        else
-          zip -r sorkin-${{ matrix.platform }}.zip sorkin_addon
-        fi
+      - name: Create release archive
+        if: github.event_name == 'release'
+        run: |
+          cd target
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell Compress-Archive -Path sorkin_addon -DestinationPath sorkin-${{ matrix.platform }}.zip
+          else
+            zip -r sorkin-${{ matrix.platform }}.zip sorkin_addon
+          fi
 
-    - name: Upload to release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: target/sorkin-${{ matrix.platform }}.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/sorkin-${{ matrix.platform }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
