@@ -41,6 +41,26 @@ pub struct ConversionContext {
 }
 
 impl ConversionContext {
+    fn copy_plane_data(&mut self, texture: Rid, buf: &mut [u8], line_size: usize, divisor: u32) {
+        let tex = self.device.texture_get_data(texture, 0);
+        let tex_slice = tex.as_slice();
+        let plane_height = (self.height / divisor) as usize;
+        let plane_width = (self.width / divisor) as usize;
+
+        for row in 0..plane_height {
+            let src_start = row * plane_width;
+            let dst_start = row * line_size;
+
+            let copy_len = plane_width
+                .min(tex_slice.len().saturating_sub(src_start))
+                .min(buf.len().saturating_sub(dst_start));
+
+            if copy_len > 0 {
+                buf[dst_start..dst_start + copy_len]
+                    .copy_from_slice(&tex_slice[src_start..src_start + copy_len]);
+            }
+        }
+    }
     pub fn new(from: Format, to: Pixel, width: u32, height: u32) -> Result<Self, crate::Error> {
         let render_server = RenderingServer::singleton();
 
@@ -185,7 +205,7 @@ impl ConversionContext {
         self.device.compute_list_dispatch(
             compute_list,
             self.width.div_ceil(16),
-            self.width.div_ceil(16),
+            self.height.div_ceil(16),
             1,
         );
         self.device.compute_list_end();
@@ -193,52 +213,25 @@ impl ConversionContext {
         self.device.submit();
         self.device.sync();
 
+        let Channels::YUVA420p { y, u, v, a, .. } = self.channels;
+        let planes = [(y, 1), (u, 2), (v, 2)];
+
         // Copy YUV channels to main frame
-        for plane in 0..frame.planes() {
-            let buf = frame.data_mut(plane);
-            let Channels::YUVA420p { y, u, v, .. } = self.channels;
-            match plane {
-                0 => {
-                    // luminance
-                    let tex = self.device.texture_get_data(y, 0);
-                    let tex_slice = tex.as_slice();
-                    let copy_len = buf.len().min(tex_slice.len());
-                    buf[..copy_len].copy_from_slice(&tex_slice[..copy_len]);
-                }
-                1 => {
-                    let tex = self.device.texture_get_data(u, 0);
-                    let tex_slice = tex.as_slice();
-                    let copy_len = buf.len().min(tex_slice.len());
-                    buf[..copy_len].copy_from_slice(&tex_slice[..copy_len]);
-                }
-                2 => {
-                    let tex = self.device.texture_get_data(v, 0);
-                    let tex_slice = tex.as_slice();
-                    let copy_len = buf.len().min(tex_slice.len());
-                    buf[..copy_len].copy_from_slice(&tex_slice[..copy_len]);
-                }
-                _ => panic!("unsupported plane count"),
-            }
+        for (plane_idx, (texture, divisor)) in planes.iter().enumerate() {
+            let line_size = frame.stride(plane_idx);
+            let buf = frame.data_mut(plane_idx);
+            self.copy_plane_data(*texture, buf, line_size, *divisor);
         }
 
         if let Some(alpha_frame) = alpha_frame {
-            let Channels::YUVA420p { a, .. } = self.channels;
+            let line_size = alpha_frame.stride(0);
+            let buf = alpha_frame.data_mut(0);
+            self.copy_plane_data(a, buf, line_size, 1);
 
-            let alpha_tex = self.device.texture_get_data(a, 0);
-            let alpha_tex_slice = alpha_tex.as_slice();
-            let alpha_y = alpha_frame.data_mut(0);
-            let copy_len = alpha_y.len().min(alpha_tex_slice.len());
-            alpha_y[..copy_len].copy_from_slice(&alpha_tex_slice[..copy_len]);
-
-            if alpha_frame.planes() > 1 {
-                let u_plane = alpha_frame.data_mut(1);
-                u_plane.fill(128);
-            }
-
-            if alpha_frame.planes() > 2 {
-                let v_plane = alpha_frame.data_mut(2);
-                v_plane.fill(128);
-            }
+            // Fill chroma planes with neutral gray for alpha
+            (1..alpha_frame.planes()).for_each(|plane| {
+                alpha_frame.data_mut(plane).fill(128);
+            });
         }
     }
 }
