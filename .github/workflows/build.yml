@@ -15,19 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install FFmpeg and build dependencies
+      - name: Install build dependencies
         run: |
           sudo apt update
           sudo apt install -y --no-install-recommends \
             clang \
             pkg-config \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libavfilter-dev \
-            libavdevice-dev \
-            libswscale-dev \
-            libswresample-dev
+            nasm \
+            yasm \
+            make
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Just
