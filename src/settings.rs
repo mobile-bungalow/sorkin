@@ -80,9 +80,9 @@ impl EncoderConfig {
 
             let thread_count_info = dict! {
                 "name": thread_count_name.clone(),
-                "type": VariantType::INT,
-                "hint": PropertyHint::RANGE,
-                "hint_string": "0,32,1,or_greater".to_godot(),
+                "type": VariantType::INT.to_variant(),
+                "hint": PropertyHint::RANGE.to_variant(),
+                "hint_string": "0,32,1,or_greater".to_variant(),
                 "description": "The number of threads to dedicate to encoding the video - 0 means all available",
             };
             project_settings.add_property_info(thread_count_info);
