@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 godot = "0.1.3"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-ffmpeg-next = { version = "7.1", features = ["build", "build-license-gpl", "static"] }
+ffmpeg-next = { version = "7.1", features = ["build", "static"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-ffmpeg-next = { version = "7.1", features = ["build", "static"] }
+ffmpeg-next = { version = "7.1", features = ["static"] }

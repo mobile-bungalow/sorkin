@@ -15,15 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install build dependencies
+      - name: Install FFmpeg and build dependencies
         run: |
           sudo apt update
           sudo apt install -y --no-install-recommends \
             clang \
             pkg-config \
-            yasm \
-            nasm \
-            make
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libavfilter-dev \
+            libavdevice-dev \
+            libswscale-dev \
+            libswresample-dev
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Just
@@ -90,6 +94,11 @@ jobs:
         run: |
           $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
           Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
+
+      - name: Install FFmpeg via vcpkg
+        run: |
+          vcpkg install ffmpeg:x64-windows-static-md
+          Add-Content $env:GITHUB_ENV "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT`n"
 
       - name: Build
         run: just bundle
