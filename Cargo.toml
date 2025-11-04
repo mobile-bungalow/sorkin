@@ -3,12 +3,16 @@ name = "sorkin"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
-description = "High-performance WebM video recording for Godot using FFmpeg"
 repository = "https://github.com/paulmay/sorkin"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-ffmpeg-next = { version = "7.1", features = ["build", "build-license-gpl", "build-lib-vpx", "build-lib-opus"] }
 godot = "0.1.3"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+ffmpeg-next = { version = "7.1", features = ["build", "build-license-gpl", "static"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+ffmpeg-next = { version = "7.1", features = ["static"] }
