@@ -28,7 +28,7 @@ project/assembly_name="plugin"
 
 [editor]
 
-movie_writer/movie_file="/Users/paulmay/Desktop/testo.webm"
+movie_writer/movie_file="test.webm"
 
 [editor_plugins]
 
@@ -40,7 +40,7 @@ viewport/transparent_background=true
 
 [sorkin_movie_writer]
 
-alpha_channel=true
-thread_count=0
 quality="Realtime"
-enable_audio=false
+alpha_channel=false
+enable_audio=true
+thread_count=0

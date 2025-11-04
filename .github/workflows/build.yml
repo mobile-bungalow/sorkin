@@ -36,15 +36,32 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           brew install ffmpeg pkg-config
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+
       - name: Install Just
         uses: extractions/setup-just@v2
+
       - name: Build
         run: just bundle
+
+      - name: Mac Sign
+        uses: ughuuu/godot-cpp-template/.github/actions/sign@add-more-stuff/options-to-build
+        with:
+          FRAMEWORK_PATH: target/sorkin_addon/addons/sorkin/bin/libsorkin.macos.framework
+          SIGN_FLAGS: "--deep"
+          APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_DEV_PASSWORD: ${{ secrets.APPLE_DEV_PASSWORD }}
+          APPLE_DEV_ID: ${{ secrets.APPLE_DEV_ID }}
+          APPLE_DEV_TEAM_ID: ${{ secrets.APPLE_DEV_TEAM_ID }}
+          APPLE_DEV_APP_ID: ${{ secrets.APPLE_DEV_APP_ID }}
+        if: github.ref == 'refs/heads/main'
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -54,51 +71,106 @@ jobs:
   build-windows:
     name: Windows - build
     runs-on: windows-latest
-    env:
-      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+
+      - name: Set LIBCLANG_PATH
         run: |
           $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
           Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
-          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
-          7z x ffmpeg-release-full-shared.7z
-          mkdir ffmpeg
-          mv ffmpeg-*/* ffmpeg/
-          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
-          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+
       - name: Install Just
         uses: extractions/setup-just@v2
+
       - name: Build
         run: just bundle
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: sorkin-windows
           path: target/sorkin_addon/
 
-  release:
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+  merge-artifacts:
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - uses: actions/checkout@v4
+
+      - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-      - name: Create release archives
+          name: sorkin-linux
+          path: temp-linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sorkin-macos
+          path: temp-macos
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sorkin-windows
+          path: temp-windows
+
+      - name: Merge all platforms into unified addon
         run: |
-          cd artifacts
-          for platform in linux macos windows; do
-            zip -r sorkin-${platform}.zip sorkin-${platform}/
-          done
+          # Create unified addon directory structure
+          mkdir -p addons/sorkin/bin
+
+          # Copy .gdextension file and other assets
+          cp assets/sorkin.gdextension addons/sorkin/
+          cp -r assets/* addons/sorkin/ || true
+
+          # Copy Linux binaries with platform-specific naming
+          if [ -d "temp-linux/addons" ]; then
+            find temp-linux/addons -name "*.so" -exec cp {} addons/sorkin/bin/libsorkin.linux.x86_64.so \;
+          fi
+
+          # Copy Windows binaries with platform-specific naming
+          if [ -d "temp-windows/addons" ]; then
+            find temp-windows/addons -name "*.dll" -exec cp {} addons/sorkin/bin/sorkin.windows.x86_64.dll \;
+          fi
+
+          # Copy macOS framework
+          if [ -d "temp-macos/addons" ]; then
+            find temp-macos/addons -name "*.dylib" -exec cp {} addons/sorkin/bin/libsorkin.macos.dylib \;
+          fi
+
+          # List what we have
+          echo "=== Unified addon structure ==="
+          ls -R addons/
+
+      - name: Upload unified addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: sorkin-addon
+          path: addons/
+
+  release:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    needs: [merge-artifacts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download unified addon
+        uses: actions/download-artifact@v4
+        with:
+          name: sorkin-addon
+          path: addons
+
+      - name: Create release archive
+        run: |
+          zip -r sorkin-addon.zip addons/
+
       - name: Upload to release
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
-          files: artifacts/*.zip
+          files: sorkin-addon.zip
           draft: false
           prerelease: false
