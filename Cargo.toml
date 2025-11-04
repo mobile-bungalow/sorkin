@@ -15,4 +15,4 @@ godot = "0.1.3"
 ffmpeg-next = { version = "7.1", features = ["build", "build-license-gpl", "static"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-ffmpeg-next = { version = "7.1", features = ["static"] }
+ffmpeg-next = { version = "7.1", features = ["build", "static"] }
