@@ -1,2 +1,4 @@
 /target
 ./test_plugin/test.webm
+.DS_Store
+*.webm

@@ -459,6 +459,8 @@ impl VP9Encoder {
         let codec = encoder::find(ffmpeg::codec::Id::VP9)
             .ok_or_else(|| Error::Encoding("Codec not found".to_string()))?;
 
+        godot_print!("Using Codec {:?}", codec.name());
+
         let video_stream_index = {
             let mut video_stream =
                 output_context.add_stream(ffmpeg::encoder::find(ffmpeg::codec::Id::VP9))?;

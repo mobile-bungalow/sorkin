@@ -40,7 +40,7 @@ viewport/transparent_background=true
 
 [sorkin_movie_writer]
 
-quality="Realtime"
 alpha_channel=false
 enable_audio=true
 thread_count=0
+quality="Realtime"

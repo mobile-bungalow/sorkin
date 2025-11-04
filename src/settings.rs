@@ -93,10 +93,10 @@ impl EncoderConfig {
             project_settings.set(quality_name.clone().into(), "Realtime".to_variant());
 
             let quality_info = dict! {
-                "name": quality_name.clone(),
-                "type": VariantType::STRING,
-                "hint": PropertyHint::ENUM,
-                "hint_string": "Realtime,Good,Best".to_godot()
+                "name": quality_name.to_variant(),
+                "type": VariantType::STRING.to_variant(),
+                "hint": PropertyHint::ENUM.to_variant(),
+                "hint_string": "Realtime,Good,Best".to_variant()
             };
             project_settings.add_property_info(quality_info);
         }

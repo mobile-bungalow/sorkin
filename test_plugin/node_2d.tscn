@@ -8,7 +8,6 @@
 [sub_resource type="Gradient" id="Gradient_eidfb"]
 interpolation_mode = 2
 interpolation_color_space = 2
-offsets = PackedFloat32Array(0, 0.977383)
 colors = PackedColorArray(0.635294, 0, 0, 1, 1, 0.52549, 1, 1)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_astk0"]
@@ -114,3 +113,7 @@ libraries = {
 }
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="Icon2" type="Sprite2D" parent="."]
+position = Vector2(844, 885)
+texture = ExtResource("1_ejg42")
