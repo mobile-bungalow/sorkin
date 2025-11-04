@@ -17,12 +17,12 @@ bundle: build bundle-platform
 bundle-platform:
     #!/usr/bin/env bash
     set -e
-    FRAMEWORK="{{addon_dir}}/bin/lib{{package_name}}.macos.framework"
+    FRAMEWORK="{{addon_dir}}/bin/lib{{package_name}}.framework"
     mkdir -p "{{addon_dir}}/bin"
     mkdir -p "$FRAMEWORK/Resources"
     cp -r assets/sorkin/* "{{addon_dir}}/"
     cp assets/sorkin.gdextension "{{addon_dir}}/"
-    cp "{{target_dir}}/release/lib{{package_name}}.dylib" "$FRAMEWORK/lib{{package_name}}.macos.dylib"
+    cp "{{target_dir}}/release/lib{{package_name}}.dylib" "$FRAMEWORK/lib{{package_name}}"
     cp assets/Info.plist.template "$FRAMEWORK/Resources/Info.plist"
     echo "✓ Framework created at $FRAMEWORK"
 

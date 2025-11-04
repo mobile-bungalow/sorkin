@@ -58,7 +58,7 @@ jobs:
       - name: Mac Sign
         uses: ughuuu/godot-cpp-template/.github/actions/sign@add-more-stuff/options-to-build
         with:
-          FRAMEWORK_PATH: target/sorkin_addon/addons/sorkin/bin/libsorkin.macos.framework
+          FRAMEWORK_PATH: target/sorkin_addon/addons/sorkin/bin/libsorkin.framework
           SIGN_FLAGS: "--deep"
           APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -133,26 +133,24 @@ jobs:
 
       - name: Merge all platforms into unified addon
         run: |
-          # Create unified addon directory structure
           mkdir -p addons/sorkin/bin
 
-          # Copy .gdextension file and other assets
+          cp -r assets/sorkin/* addons/sorkin/
           cp assets/sorkin.gdextension addons/sorkin/
-          cp -r assets/* addons/sorkin/ || true
 
-          # Copy Linux binaries with platform-specific naming
-          if [ -d "temp-linux/addons" ]; then
-            find temp-linux/addons -name "*.so" -exec cp {} addons/sorkin/bin/libsorkin.linux.x86_64.so \;
+          # Copy Linux binary
+          if [ -d "temp-linux/addons/sorkin/bin" ]; then
+            cp temp-linux/addons/sorkin/bin/*.so addons/sorkin/bin/
           fi
 
-          # Copy Windows binaries with platform-specific naming
-          if [ -d "temp-windows/addons" ]; then
-            find temp-windows/addons -name "*.dll" -exec cp {} addons/sorkin/bin/sorkin.windows.x86_64.dll \;
+          # Copy Windows binaries (DLL + FFmpeg DLLs)
+          if [ -d "temp-windows/addons/sorkin/bin" ]; then
+            cp temp-windows/addons/sorkin/bin/*.dll addons/sorkin/bin/
           fi
 
           # Copy macOS framework
-          if [ -d "temp-macos/addons" ]; then
-            find temp-macos/addons -name "*.dylib" -exec cp {} addons/sorkin/bin/libsorkin.macos.dylib \;
+          if [ -d "temp-macos/addons/sorkin/bin" ]; then
+            cp -r temp-macos/addons/sorkin/bin/*.framework addons/sorkin/bin/
           fi
 
           # List what we have
