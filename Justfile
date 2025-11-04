@@ -39,6 +39,7 @@ bundle-platform:
     Copy-Item -Recurse -Force "assets\sorkin\*" "{{addon_dir}}"
     Copy-Item -Force "assets\sorkin.gdextension" "{{addon_dir}}"
     Copy-Item -Force "{{target_dir}}\release\{{package_name}}.dll" "{{addon_dir}}\bin\{{package_name}}.windows.x86_64.dll"
+    if (Test-Path env:FFMPEG_DIR) { Copy-Item -Force "$env:FFMPEG_DIR\bin\*.dll" "{{addon_dir}}\bin\" }
 
 clean:
     cargo clean
