@@ -22,6 +22,7 @@ jobs:
             clang \
             pkg-config \
             libopus-dev \
+            libvpx-dev \
             nasm \
             yasm \
             make
