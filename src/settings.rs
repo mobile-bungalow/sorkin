@@ -80,9 +80,9 @@ impl EncoderConfig {
 
             let thread_count_info = dict! {
                 "name": thread_count_name.clone(),
-                "type": VariantType::INT,
-                "hint": PropertyHint::RANGE,
-                "hint_string": "0,32,1,or_greater".to_godot(),
+                "type": VariantType::INT.to_variant(),
+                "hint": PropertyHint::RANGE.to_variant(),
+                "hint_string": "0,32,1,or_greater".to_variant(),
                 "description": "The number of threads to dedicate to encoding the video - 0 means all available",
             };
             project_settings.add_property_info(thread_count_info);
@@ -93,10 +93,10 @@ impl EncoderConfig {
             project_settings.set(quality_name.clone().into(), "Realtime".to_variant());
 
             let quality_info = dict! {
-                "name": quality_name.clone(),
-                "type": VariantType::STRING,
-                "hint": PropertyHint::ENUM,
-                "hint_string": "Realtime,Good,Best".to_godot()
+                "name": quality_name.to_variant(),
+                "type": VariantType::STRING.to_variant(),
+                "hint": PropertyHint::ENUM.to_variant(),
+                "hint_string": "Realtime,Good,Best".to_variant()
             };
             project_settings.add_property_info(quality_info);
         }

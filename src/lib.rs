@@ -113,11 +113,16 @@ impl IMovieWriter for SorkinWriter {
             fps,
             path
         );
+
+        godot_print!("Initializing FFmpeg...");
+
         ffmpeg::init().unwrap();
+        godot_print!("FFmpeg initialized successfully");
 
         self.fps = fps;
         self.frame_count = 0;
         self.output_path = Some(path.to_string());
+        godot_print!("Output path set to: {:?}", self.output_path);
         self.total_frame_time = 0.0;
         self.recording_start_time = Some(std::time::Instant::now());
 
@@ -130,6 +135,7 @@ impl IMovieWriter for SorkinWriter {
         }
         self.audio_buffer.clear();
 
+        godot_print!("write_begin completed successfully");
         GodotError::OK
     }
     unsafe fn write_frame(
@@ -178,15 +184,25 @@ impl IMovieWriter for SorkinWriter {
                     ffmpeg::format::Pixel::YUV420P
                 };
 
-                match (
-                    VP9Encoder::new(path.clone(), width, height, self.fps as f64, &self.config),
-                    ConversionContext::new(
-                        godot::classes::image::Format::RGBA8,
-                        pixel_format,
-                        width,
-                        height,
-                    ),
-                ) {
+                godot_print!("Creating VP9Encoder...");
+                let encoder_result =
+                    VP9Encoder::new(path.clone(), width, height, self.fps as f64, &self.config);
+                if let Err(ref e) = encoder_result {
+                    godot_error!("VP9Encoder::new failed: {:?}", e);
+                }
+
+                godot_print!("Creating ConversionContext...");
+                let conversion_result = ConversionContext::new(
+                    godot::classes::image::Format::RGBA8,
+                    pixel_format,
+                    width,
+                    height,
+                );
+                if let Err(ref e) = conversion_result {
+                    godot_error!("ConversionContext::new failed: {:?}", e);
+                }
+
+                match (encoder_result, conversion_result) {
                     (Ok(encoder), Ok(conversion_context)) => {
                         self.encoder = Some(encoder);
                         self.alpha_encoder = alpha_encoder;
@@ -423,7 +439,17 @@ impl VP9Encoder {
         fps: f64,
         config: &EncoderConfig,
     ) -> Result<Self, Error> {
-        let mut output_context = ffmpeg::format::output(&path)?;
+        godot_print!("VP9Encoder::new - Opening output file: {}", path);
+        let mut output_context = match ffmpeg::format::output(&path) {
+            Ok(ctx) => {
+                godot_print!("Output context created successfully");
+                ctx
+            }
+            Err(e) => {
+                godot_error!("Failed to create output context for '{}': {:?}", path, e);
+                return Err(e.into());
+            }
+        };
 
         let global_header = output_context
             .format()
@@ -432,6 +458,8 @@ impl VP9Encoder {
 
         let codec = encoder::find(ffmpeg::codec::Id::VP9)
             .ok_or_else(|| Error::Encoding("Codec not found".to_string()))?;
+
+        godot_print!("Using Codec {:?}", codec.name());
 
         let video_stream_index = {
             let mut video_stream =

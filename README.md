@@ -26,10 +26,6 @@ sorkin.toggle_pause()
 
 ```
 
-### Dependencies
+### Testing
 
-The plugin requires FFmpeg to be installed on the system:
-
-- **Linux**: Install through package manager (`sudo apt-get install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev`)
-- **macOS**: Install through Homebrew (`brew install ffmpeg`)
-- **Windows**: Install through Chocolatey (`choco install ffmpeg`) or download from [FFmpeg.org](https://ffmpeg.org/download.html)
+The test_plugin project can be used to test changes made to the movie writer, simply run the project with movie maker mode enabled and check the output test.webm in the test_plugin project is encoded as expected.

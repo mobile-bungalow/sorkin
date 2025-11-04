@@ -2,10 +2,17 @@
 name = "sorkin"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/paulmay/sorkin"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-ffmpeg-next = "7.1"
 godot = "0.1.3"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+ffmpeg-next = { version = "8.0.0", default-features = false, features = ["build-license-version3", "build", "codec", "device", "format", "build-lib-vpx", "build-lib-opus"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+ffmpeg-next = "8.0.0"

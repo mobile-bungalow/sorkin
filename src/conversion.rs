@@ -66,7 +66,9 @@ impl ConversionContext {
 
         let mut rd = render_server
             .create_local_rendering_device()
-            .ok_or(Error::Conversion("No render device".into()))?;
+            .ok_or(Error::Conversion(
+                "Sorkin does not work in headless mode or with GL renderer, use Forward+".into(),
+            ))?;
 
         let mut src = godot::classes::RdShaderSource::new_gd();
 
