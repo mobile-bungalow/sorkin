@@ -135,8 +135,6 @@ jobs:
 
       - name: Merge all platforms into unified addon
         run: |
-          mkdir -p addons/sorkin/bin
-
           cp -r assets/sorkin/* addons/sorkin/
           cp assets/sorkin.gdextension addons/sorkin/
 

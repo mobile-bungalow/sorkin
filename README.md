@@ -4,9 +4,10 @@ The default AVI encoding from the godot Movie Writer mode requires roughly 20 me
 
 ## Installation
 
-Extract the `sorkin_addon` folder to your Godot project's `addons/` directory.
+Install via the [Godot Asset Library](https://godotengine.org/asset-library/asset/4455) directly from the Godot editor, or download `sorkin-addon.zip` from the [latest release](https://github.com/paulmay/sorkin/releases) and extract the `sorkin/` folder into your project's `addons/` directory. Then enable the plugin in **Project > Project Settings > Plugins**.
 
-TODO: release to the godot asset library.
+> **Note for teams:** The native binaries are large (100 MB+ on Windows) and should not be
+> committed to git. Each team member must install the plugin individually. A .gitignore reflecting this constraint is included with the plugin.
 
 ## Usage
 

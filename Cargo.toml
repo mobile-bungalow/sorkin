@@ -15,4 +15,4 @@ godot = "0.1.3"
 ffmpeg-next = { version = "8.0.0", default-features = false, features = ["build-license-version3", "build", "codec", "device", "format", "build-lib-vpx", "build-lib-opus"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-ffmpeg-next = "8.0.0"
+ffmpeg-next = { version = "8.0.0", default-features = false, features = ["codec", "device", "format"] }

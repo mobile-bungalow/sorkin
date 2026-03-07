@@ -2,3 +2,7 @@
 ./test_plugin/test.webm
 .DS_Store
 *.webm
+
+# Pre-built native binaries — download from GitHub Releases instead of committing.
+# See README.md for setup instructions.
+addons/sorkin/bin/
