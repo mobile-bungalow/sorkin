@@ -13,6 +13,8 @@ jobs:
   build-linux:
     name: Linux - build
     runs-on: ubuntu-latest
+    env:
+      PKG_CONFIG_ALL_STATIC: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
@@ -21,6 +23,7 @@ jobs:
           sudo apt install -y --no-install-recommends \
             clang \
             pkg-config \
+            libopus-dev \
             nasm \
             yasm \
             make
