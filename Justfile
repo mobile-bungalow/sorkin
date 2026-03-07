@@ -18,12 +18,19 @@ bundle-platform:
     #!/usr/bin/env bash
     set -e
     FRAMEWORK="{{addon_dir}}/bin/lib{{package_name}}.framework"
+    BINARY="$FRAMEWORK/lib{{package_name}}"
     mkdir -p "{{addon_dir}}/bin"
     mkdir -p "$FRAMEWORK/Resources"
     cp -r assets/sorkin/* "{{addon_dir}}/"
     cp assets/sorkin.gdextension "{{addon_dir}}/"
-    cp "{{target_dir}}/release/lib{{package_name}}.dylib" "$FRAMEWORK/lib{{package_name}}"
+    cp "{{target_dir}}/release/lib{{package_name}}.dylib" "$BINARY"
     cp assets/Info.plist.template "$FRAMEWORK/Resources/Info.plist"
+    # Bundle Homebrew dylib dependencies and rewrite paths to @loader_path
+    for dep in $(otool -L "$BINARY" | awk '/\/opt\/homebrew/{print $1}'); do
+        lib=$(basename "$dep")
+        cp "$dep" "$FRAMEWORK/$lib"
+        install_name_tool -change "$dep" "@loader_path/$lib" "$BINARY"
+    done
     echo "✓ Framework created at $FRAMEWORK"
 
 [linux]

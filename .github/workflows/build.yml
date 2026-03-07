@@ -21,8 +21,6 @@ jobs:
           sudo apt install -y --no-install-recommends \
             clang \
             pkg-config \
-            libopus-dev \
-            libvpx-dev \
             nasm \
             yasm \
             make
