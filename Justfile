@@ -39,13 +39,7 @@ bundle-platform:
     Copy-Item -Recurse -Force "assets\sorkin\*" "{{addon_dir}}"
     Copy-Item -Force "assets\sorkin.gdextension" "{{addon_dir}}"
     Copy-Item -Force "{{target_dir}}\release\{{package_name}}.dll" "{{addon_dir}}\bin\{{package_name}}.windows.x86_64.dll"
-    if (Test-Path env:FFMPEG_DIR) {
-        $needed = @('avcodec-*', 'avdevice-*', 'avformat-*', 'avutil-*', 'libvpx*', 'opus*', 'libopus*')
-        foreach ($pattern in $needed) {
-            Get-ChildItem "$env:FFMPEG_DIR\bin\$pattern.dll" -ErrorAction SilentlyContinue |
-                Copy-Item -Destination "{{addon_dir}}\bin\"
-        }
-    }
+    if (Test-Path env:FFMPEG_DIR) { foreach ($p in @('avcodec-*','avdevice-*','avformat-*','avutil-*','libvpx*','opus*','libopus*')) { Get-ChildItem "$env:FFMPEG_DIR\bin\$p.dll" -EA SilentlyContinue | Copy-Item -Destination "{{addon_dir}}\bin\" } }
 
 clean:
     cargo clean
