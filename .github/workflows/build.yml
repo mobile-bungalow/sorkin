@@ -227,6 +227,7 @@ jobs:
         with:
           name: sorkin-addon
           path: addons/
+          include-hidden-files: true
 
   release:
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
