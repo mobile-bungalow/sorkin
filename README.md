@@ -9,6 +9,13 @@ Install via the [Godot Asset Library](https://godotengine.org/asset-library/asse
 > **Note for teams:** The native binaries are large (100 MB+ on Windows) and should not be
 > committed to git. Each team member must install the plugin individually. A .gitignore reflecting this constraint is included with the plugin.
 
+> **Linux users:** The plugin requires `libvpx` and `libopus` to be installed on your system. Install them with:
+> ```
+> sudo apt install libvpx-dev libopus-dev   # Debian/Ubuntu
+> sudo dnf install libvpx-devel opus-devel  # Fedora/RHEL
+> sudo pacman -S libvpx opus                # Arch
+> ```
+
 ## Usage
 
 Simply change the `Move Writer` output path to somethign with the `.webm` extension, when you run the editor in movie maker mode
