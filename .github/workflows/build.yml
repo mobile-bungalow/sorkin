@@ -114,6 +114,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: sorkin-linux
@@ -126,19 +127,18 @@ jobs:
         with:
           version: 4.6.1
           use-dotnet: false
-      - name: Run headless and check output
+      - name: Test plugin loads
         run: |
-          mkdir -p test_plugin/addons
-          cp -r sorkin_addon/addons/sorkin test_plugin/addons/sorkin
-          printf '[application]\nconfig/name="Test"\nconfig/features=PackedStringArray("4.6")\n\n[editor_plugins]\nenabled=PackedStringArray("res://addons/sorkin/plugin.cfg")\n' > test_plugin/project.godot
-          timeout 20 godot --path test_plugin --editor --headless 2>&1 | tee godot.log || true
-          grep -q "Sorkin Video Encoder plugin activated" godot.log
+          cp -r sorkin_addon/addons/sorkin/bin/. test_plugin/addons/sorkin/bin/
+          cp sorkin_addon/addons/sorkin/sorkin.gdextension test_plugin/addons/sorkin/
+          godot --headless --path test_plugin --script check.gd
 
   test-windows:
     name: Windows - test plugin loads
     needs: build-windows
     runs-on: windows-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: sorkin-windows
@@ -147,24 +147,18 @@ jobs:
         with:
           version: 4.6.1
           use-dotnet: false
-      - name: Run headless and check output
+      - name: Test plugin loads
         run: |
-          New-Item -ItemType Directory -Force test_plugin\addons | Out-Null
-          Copy-Item -Recurse -Force sorkin_addon\addons\sorkin test_plugin\addons\
-          Set-Content test_plugin\project.godot "[application]`nconfig/name=`"Test`"`nconfig/features=PackedStringArray(`"4.6`")`n`n[editor_plugins]`nenabled=PackedStringArray(`"res://addons/sorkin/plugin.cfg`")"
-          $proc = Start-Process -FilePath "$env:GODOT" `
-            -ArgumentList "--path","$PWD\test_plugin","--editor","--headless" `
-            -PassThru -RedirectStandardOutput godot.log -RedirectStandardError godot_err.log -NoNewWindow
-          Start-Sleep 20
-          Stop-Process -Id $proc.Id -ErrorAction SilentlyContinue
-          Get-Content godot.log,godot_err.log
-          Select-String "Sorkin Video Encoder plugin activated" godot.log,godot_err.log
+          Copy-Item -Recurse -Force sorkin_addon\addons\sorkin\bin\ test_plugin\addons\sorkin\bin\
+          Copy-Item -Force sorkin_addon\addons\sorkin\sorkin.gdextension test_plugin\addons\sorkin\
+          godot --headless --path test_plugin --script check.gd
 
   test-macos:
     name: macOS - test plugin loads
     needs: build-macos
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: sorkin-macos
@@ -173,13 +167,11 @@ jobs:
         with:
           version: 4.6.1
           use-dotnet: false
-      - name: Run headless and check output
+      - name: Test plugin loads
         run: |
-          mkdir -p test_plugin/addons
-          cp -r sorkin_addon/addons/sorkin test_plugin/addons/sorkin
-          printf '[application]\nconfig/name="Test"\nconfig/features=PackedStringArray("4.6")\n\n[editor_plugins]\nenabled=PackedStringArray("res://addons/sorkin/plugin.cfg")\n' > test_plugin/project.godot
-          timeout 20 godot --path test_plugin --editor --headless 2>&1 | tee godot.log || true
-          grep -q "Sorkin Video Encoder plugin activated" godot.log
+          cp -r sorkin_addon/addons/sorkin/bin/. test_plugin/addons/sorkin/bin/
+          cp sorkin_addon/addons/sorkin/sorkin.gdextension test_plugin/addons/sorkin/
+          godot --headless --path test_plugin --script check.gd
 
   merge-artifacts:
     needs: [build-linux, build-macos, build-windows]
