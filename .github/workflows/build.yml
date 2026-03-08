@@ -160,6 +160,27 @@ jobs:
           Get-Content godot.log,godot_err.log
           Select-String "Sorkin Video Encoder plugin activated" godot.log,godot_err.log
 
+  test-macos:
+    name: macOS - test plugin loads
+    needs: build-macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sorkin-macos
+          path: sorkin_addon
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.1
+          use-dotnet: false
+      - name: Run headless and check output
+        run: |
+          mkdir -p test_plugin/addons
+          cp -r sorkin_addon/addons/sorkin test_plugin/addons/sorkin
+          printf '[application]\nconfig/name="Test"\nconfig/features=PackedStringArray("4.6")\n\n[editor_plugins]\nenabled=PackedStringArray("res://addons/sorkin/plugin.cfg")\n' > test_plugin/project.godot
+          timeout 20 godot --path test_plugin --editor --headless 2>&1 | tee godot.log || true
+          grep -q "Sorkin Video Encoder plugin activated" godot.log
+
   merge-artifacts:
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
