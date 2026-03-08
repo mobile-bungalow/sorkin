@@ -129,7 +129,6 @@ jobs:
         run: |
           mkdir -p test_plugin/addons
           cp -r sorkin_addon/addons/sorkin test_plugin/addons/sorkin
-          cp sorkin_addon/addons/sorkin/sorkin.gdextension test_plugin/addons/
           printf '[application]\nconfig/name="Test"\nconfig/features=PackedStringArray("4.7")\n' > test_plugin/project.godot
           timeout 20 godot/Godot* --path test_plugin --editor --headless 2>&1 | tee godot.log || true
           grep -q "Sorkin Video Encoder plugin activated" godot.log
@@ -149,9 +148,8 @@ jobs:
           7z x godot.zip -ogodot
       - name: Run headless and check output
         run: |
-          New-Item -ItemType Directory -Force test_plugin\addons\sorkin | Out-Null
-          Copy-Item -Recurse -Force sorkin_addon\addons\sorkin test_plugin\addons\sorkin
-          Copy-Item -Force sorkin_addon\addons\sorkin\sorkin.gdextension test_plugin\addons\
+          New-Item -ItemType Directory -Force test_plugin\addons | Out-Null
+          Copy-Item -Recurse -Force sorkin_addon\addons\sorkin test_plugin\addons\
           Set-Content test_plugin\project.godot '[application]`nconfig/name="Test"`nconfig/features=PackedStringArray("4.7")'
           $proc = Start-Process -FilePath (Get-ChildItem godot\*.exe | Select-Object -First 1).FullName `
             -ArgumentList "--path","$PWD\test_plugin","--editor","--headless" `
