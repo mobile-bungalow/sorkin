@@ -37,6 +37,7 @@ jobs:
         with:
           name: sorkin-linux
           path: target/sorkin_addon/
+          include-hidden-files: true
 
   build-macos:
     name: macOS - build
@@ -73,6 +74,7 @@ jobs:
         with:
           name: sorkin-macos
           path: target/sorkin_addon/
+          include-hidden-files: true
 
   build-windows:
     name: Windows - build
@@ -108,6 +110,7 @@ jobs:
         with:
           name: sorkin-windows
           path: target/sorkin_addon/
+          include-hidden-files: true
 
   test-linux:
     name: Linux - test plugin loads
