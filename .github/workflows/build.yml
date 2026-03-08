@@ -121,7 +121,7 @@ jobs:
       - name: Install runtime deps and Godot
         run: |
           sudo apt update
-          sudo apt install -y --no-install-recommends libvpx7 libopus0 unzip curl ca-certificates
+          sudo apt install -y --no-install-recommends libvpx-dev libopus0 unzip curl ca-certificates
           curl -fsSL "https://downloads.godotengine.org/?version=4.7&flavor=dev2&slug=linux.x86_64.zip&platform=linux.64" -o godot.zip
           unzip -q godot.zip -d godot
           chmod +x godot/Godot*
