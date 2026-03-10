@@ -241,10 +241,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sorkin-addon
-          path: addons
+          path: sorkin_tmp
 
       - name: Create release archive
         run: |
+          mkdir addons
+          cp -r sorkin_tmp/. addons/
           zip -r sorkin-addon.zip addons/
 
       - name: Upload to release
